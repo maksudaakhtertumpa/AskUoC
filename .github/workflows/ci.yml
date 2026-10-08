@@ -193,7 +193,7 @@ jobs:
         working-directory: frontend
         run: npm audit --omit=dev --audit-level=high
       - name: Secret scanning
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
