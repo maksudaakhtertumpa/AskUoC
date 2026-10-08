@@ -36,7 +36,7 @@ jobs:
       - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'database')
         uses: actions/checkout@v4
       - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'database')
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with: { python-version: "3.12" }
       - name: Apply migrations (idempotent, checksummed)
         if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'database')
