@@ -33,7 +33,7 @@
     "eslint-config-next": "16.3.8",
     "prettier": "^3.9.9",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5"
+    "typescript": "^7"
   },
   "license": "MIT",
   "author": "Maksuda Akther Tumpa",
