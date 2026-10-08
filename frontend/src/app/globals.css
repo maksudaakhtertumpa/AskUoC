@@ -1,0 +1,340 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+/* don't scan build output or test artefacts for class names (torn reads broke the dev build) */
+@source not "../../.next*";
+@source not "../../test-results";
+@source not "../../playwright-report";
+@source not "../../.e2e-data";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* brand palette sampled from the university logo (purple #603e90, magenta #d33d8f) */
+@theme {
+  --color-uoc-50: #f7f3fc;
+  --color-uoc-100: #ede5f8;
+  --color-uoc-200: #dccdf1;
+  --color-uoc-300: #c2a8e5;
+  --color-uoc-400: #a07fd2;
+  --color-uoc-500: #7f58b8;
+  --color-uoc-600: #603e90;
+  --color-uoc-700: #4d3175;
+  --color-uoc-800: #3c265c;
+  --color-uoc-900: #2b1b42;
+  --color-uoc-950: #170c26;
+
+  --color-magenta-50: #fef1f8;
+  --color-magenta-100: #fde4f1;
+  --color-magenta-200: #fbc9e3;
+  --color-magenta-300: #f79ccb;
+  --color-magenta-400: #ee66ad;
+  --color-magenta-500: #d33d8f;
+  --color-magenta-600: #b52e78;
+  --color-magenta-700: #93265f;
+  --color-magenta-800: #781f4f;
+  --color-magenta-900: #5f1b41;
+
+  --color-sun-400: #ffc53d;
+  --color-sun-500: #f5a70a;
+}
+
+/* motion tokens, exposed as animate-* utilities */
+@theme {
+  --animate-rise: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop: pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  --animate-float: float 9s ease-in-out infinite;
+  --animate-float-slow: float 14s ease-in-out infinite reverse;
+  --animate-caret: caret 1s steps(1) infinite;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-dot: dot 1.2s ease-in-out infinite both;
+  --animate-ping-slow: ping 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+  --animate-shake: shake 0.45s ease-in-out;
+  --animate-tip: tip 3.5s ease-out forwards;
+  --animate-drift: drift 18s ease-in-out infinite;
+
+  @keyframes tip {
+    0%,
+    4% {
+      opacity: 0;
+    }
+    10%,
+    80% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20%,
+    60% {
+      transform: translateX(-5px);
+    }
+    40%,
+    80% {
+      transform: translateX(5px);
+    }
+  }
+  @keyframes drift {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) rotate(0deg);
+    }
+    50% {
+      transform: translate3d(-40px, 30px, 0) rotate(8deg);
+    }
+  }
+  @keyframes eq {
+    0%,
+    100% {
+      transform: scaleY(0.3);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(30px, -24px, 0) scale(1.08);
+    }
+  }
+  @keyframes caret {
+    0%,
+    49% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @keyframes dot {
+    0%,
+    80%,
+    100% {
+      opacity: 0.25;
+      transform: translateY(0);
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(-3px);
+    }
+  }
+}
+
+html,
+body {
+  height: 100%;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+body {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* thin scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:hover {
+  scrollbar-color: rgb(148 163 184 / 0.45) transparent;
+}
+main {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* messages fade out under the top controls and above the composer */
+.fade-y {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 56px, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 56px, #000 calc(100% - 20px), transparent 100%);
+}
+
+/* mobile: no tap flash or double-tap zoom on controls, long words never widen the page */
+button,
+a,
+summary,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+button:not(:disabled),
+[role="button"]:not(:disabled),
+summary {
+  cursor: pointer;
+}
+.prose {
+  overflow-wrap: anywhere;
+}
+@supports (height: 100dvh) {
+  .h-screen-safe {
+    height: 100dvh;
+  }
+}
+
+/* animated brand-gradient headline */
+.gradient-text {
+  background: linear-gradient(90deg, #603e90, #d33d8f, #603e90);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 6s linear infinite;
+}
+.dark .gradient-text {
+  background-image: linear-gradient(90deg, #c2a8e5, #f79ccb, #c2a8e5);
+}
+
+/* dotted grid behind the chat */
+.bg-grid {
+  background-image: radial-gradient(rgb(100 116 139 / 0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 75%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* background: lavender base with brand glows */
+.app-bg {
+  background:
+    radial-gradient(60rem 42rem at 8% -8%, rgb(160 127 210 / 0.38), transparent 62%),
+    radial-gradient(52rem 38rem at 100% 105%, rgb(238 102 173 / 0.2), transparent 62%),
+    radial-gradient(38rem 28rem at 88% 4%, rgb(94 234 212 / 0.16), transparent 62%),
+    linear-gradient(180deg, #f2ebfa 0%, #f6f0fb 55%, #f8eef6 100%);
+}
+.dark .app-bg {
+  background:
+    radial-gradient(60rem 42rem at 8% -8%, rgb(127 88 184 / 0.4), transparent 62%),
+    radial-gradient(52rem 38rem at 100% 105%, rgb(211 61 143 / 0.22), transparent 62%),
+    radial-gradient(38rem 28rem at 88% 4%, rgb(45 212 191 / 0.1), transparent 62%),
+    linear-gradient(180deg, #140a22 0%, #170c26 55%, #1b0d27 100%);
+}
+
+/* glass: the shared frosted surface */
+@layer components {
+  .glass,
+  .glass-input,
+  .glass-strong,
+  .glass-side {
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
+    backdrop-filter: blur(20px) saturate(170%);
+  }
+  .glass {
+    background: rgb(255 255 255 / 0.5);
+    border: 1px solid rgb(255 255 255 / 0.7);
+    box-shadow:
+      0 10px 30px -14px rgb(96 62 144 / 0.35),
+      inset 0 1px 0 rgb(255 255 255 / 0.75);
+  }
+  .glass-input {
+    background: rgb(255 255 255 / 0.68);
+    border: 1px solid rgb(255 255 255 / 0.8);
+    box-shadow:
+      0 16px 40px -16px rgb(96 62 144 / 0.4),
+      inset 0 1px 0 rgb(255 255 255 / 0.8);
+  }
+  .glass-strong {
+    background: rgb(255 255 255 / 0.82);
+    border: 1px solid rgb(255 255 255 / 0.85);
+    box-shadow:
+      0 28px 70px -22px rgb(43 27 66 / 0.5),
+      inset 0 1px 0 rgb(255 255 255 / 0.9);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
+  }
+  .glass-side {
+    background: rgb(255 255 255 / 0.36);
+    border-right: 1px solid rgb(255 255 255 / 0.6);
+  }
+  .dark .glass {
+    background: rgb(255 255 255 / 0.06);
+    border-color: rgb(255 255 255 / 0.1);
+    box-shadow:
+      0 10px 30px -14px rgb(0 0 0 / 0.6),
+      inset 0 1px 0 rgb(255 255 255 / 0.07);
+  }
+  .dark .glass-input {
+    background: rgb(255 255 255 / 0.08);
+    border-color: rgb(255 255 255 / 0.13);
+    box-shadow:
+      0 16px 40px -16px rgb(0 0 0 / 0.7),
+      inset 0 1px 0 rgb(255 255 255 / 0.09);
+  }
+  .dark .glass-strong {
+    background: rgb(30 17 50 / 0.82);
+    border-color: rgb(255 255 255 / 0.12);
+    box-shadow:
+      0 28px 70px -22px rgb(0 0 0 / 0.8),
+      inset 0 1px 0 rgb(255 255 255 / 0.08);
+  }
+  .dark .glass-side {
+    background: rgb(255 255 255 / 0.04);
+    border-right-color: rgb(255 255 255 / 0.09);
+  }
+}
+/* the mobile drawer sits over the chat, so it is more opaque */
+@media (max-width: 767px) {
+  .glass-side {
+    background: rgb(255 255 255 / 0.88);
+  }
+  .dark .glass-side {
+    background: rgb(24 12 40 / 0.9);
+  }
+}

@@ -1,0 +1,208 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+
+jobs:
+  backend:
+    name: Backend (lint, migrations, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+      postgres:
+        image: pgvector/pgvector:pg16
+        env: { POSTGRES_PASSWORD: pg }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r backend/requirements-dev.txt selectolax langchain-text-splitters tenacity
+      - name: Lint
+        run: ruff format --check backend ingest eval scripts && ruff check backend ingest eval scripts
+      - name: Migrations apply cleanly, and re-running is a no-op
+        env: { DATABASE_URL: "postgresql://postgres:pg@localhost:5432/postgres" }
+        run: |
+          python scripts/migrate.py
+          python scripts/migrate.py | tee out.txt
+          grep -q "already up to date" out.txt
+      - name: Tests (incl. live Redis + Postgres/pgvector)
+        env:
+          REDIS_TEST_URL: redis://localhost:6379/0
+          PG_TEST_URL: postgresql://postgres:pg@localhost:5432/postgres
+        run: pytest -q --cov=backend/app --cov-report=xml --cov-report=term-missing:skip-covered
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+          retention-days: 14
+
+  frontend:
+    name: Frontend (lint, types, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.example.invalid
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  e2e:
+    name: End-to-end (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: pip install -r backend/requirements.txt
+      - run: python scripts/seed_demo_data.py --out data
+      - working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run e2e (starts the API and the web app itself)
+        working-directory: frontend
+        env:
+          CI: "true"
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:8000
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+
+  docker:
+    name: Docker images (build + smoke test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: docker/setup-buildx-action@v3
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          load: true
+          tags: askuoc-api:ci
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          load: true
+          tags: askuoc-web:ci
+          build-args: NEXT_PUBLIC_API_URL=http://localhost:7860
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+      - name: Smoke test the API container (production mode)
+        run: |
+          pip install -q numpy langchain-text-splitters
+          pip install -q -r backend/requirements.txt
+          python scripts/seed_demo_data.py --out "$RUNNER_TEMP/data"
+          chmod -R a+rwX "$RUNNER_TEMP/data"
+          docker run -d --name api -p 7860:7860 -v "$RUNNER_TEMP/data:/app/data" \
+            -e ENVIRONMENT=production -e ADMIN_TOKEN=ci-smoke-test-only-token-2026 askuoc-api:ci
+          curl -sf --retry 30 --retry-delay 2 --retry-connrefused --retry-all-errors localhost:7860/readyz
+          headers="$(curl -sI localhost:7860/health)"
+          for h in x-content-type-options x-frame-options content-security-policy strict-transport-security x-request-id; do
+            echo "$headers" | grep -qi "^$h:" || { echo "missing header: $h"; exit 1; }
+          done
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:7860/docs)" = "404"
+          curl -sN localhost:7860/chat -H 'content-type: application/json' -d '{"message":"fees for the Diploma in Nursing"}' | grep -q "event: done"
+          test "$(docker exec api id -u)" != "0"
+      - name: Smoke test the web container
+        run: |
+          docker run -d --name web -p 3000:3000 askuoc-web:ci
+          curl -sf --retry 30 --retry-delay 2 --retry-connrefused --retry-all-errors localhost:3000/ | grep -qi "AskUoC"
+      - if: failure()
+        run: docker logs api || true; docker logs web || true
+
+  security:
+    name: Security scans
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Python dependency vulnerabilities
+        run: pip install pip-audit && pip-audit -r backend/requirements.txt
+      - name: Static analysis (bandit)
+        run: pip install bandit && bandit -r backend/app -ll -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Node dependency vulnerabilities
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+      - name: Secret scanning
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  ci-ok:
+    name: CI passed
+    if: always()
+    needs: [backend, frontend, e2e, docker, security]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every job to succeed
+        run: |
+          echo '${{ toJSON(needs) }}' | python3 -c "import json,sys; r=json.load(sys.stdin); bad={k:v['result'] for k,v in r.items() if v['result']!='success'}; print(bad or 'all green'); sys.exit(1 if bad else 0)"

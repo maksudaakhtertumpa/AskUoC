@@ -1,0 +1,28 @@
+{"q": "What is the tuition fee for the Diploma in Information Technology?", "expect": ["fees-structure"], "facts": ["22,675"]}
+{"q": "How much is the Bachelor of Pharmacy fee for international students?", "expect": ["international-fees-structure"], "facts": ["114,300"]}
+{"q": "Is there a scholarship for nursing students?", "expect": ["nursing-scholarship", "scholarship"], "facts": ["nursing"]}
+{"q": "Tell me about the MBBS Chancellor scholarship", "expect": ["mbbs-chancellor-scholarship"], "facts": ["50,000"]}
+{"q": "What is the UoC Talent Scholarship?", "expect": ["uoc-talent-scholarship"]}
+{"q": "What is the UoC Golden Bursary Award?", "expect": ["golden-bursary"]}
+{"q": "Can I use a PTPTN loan to study at UoC?", "expect": ["ptptn"]}
+{"q": "What amenities are available on campus?", "expect": ["campus-life/amenities"]}
+{"q": "Where can students stay? Is there accommodation?", "expect": ["student-accommodation"]}
+{"q": "What are the library facilities?", "expect": ["campus-life/library"]}
+{"q": "What laboratories does the university have?", "expect": ["campus-life/laboratories"]}
+{"q": "Which student clubs and societies can I join?", "expect": ["student-clubs-societies"]}
+{"q": "How do I apply online?", "expect": ["online-application", "admission"]}
+{"q": "What payment options are there for tuition fees?", "expect": ["online-payment-options"]}
+{"q": "How do international students apply?", "expect": ["international-admissions"]}
+{"q": "Can I apply with APEL?", "expect": ["apply-with-apel"]}
+{"q": "When is the academic calendar for undergraduate students?", "expect": ["academic-calendar"]}
+{"q": "How can I contact the university?", "expect": ["university/contact", "helpdesk"]}
+{"q": "Tell me about the history of the University of Cyberjaya", "expect": ["background/about"]}
+{"q": "Who is on the Board of Governors?", "expect": ["board-of-governors"]}
+{"q": "What is the Bachelor of Pharmacy programme about?", "expect": ["programme/bachelor-of-pharmacy"]}
+{"q": "What does the Doctor of Pharmacy programme cover?", "expect": ["doctor-of-pharmacy"]}
+{"q": "Tell me about the Master of Business Administration", "expect": ["programme/master-of-business-administration"]}
+{"q": "What will I learn in the Diploma in Early Childhood Education?", "expect": ["diploma-in-early-childhood-education"]}
+{"q": "Do you offer a Foundation in Arts?", "expect": ["programme/foundation-in-arts"]}
+{"q": "Is there a scholarship for international postgraduate students?", "expect": ["postgraduate", "international-students"]}
+{"q": "Which courses are offered in creative multimedia?", "expect": ["creative-multimedia", "multimedia"]}
+{"q": "Is there a discount for alumni progressing to a master's degree?", "expect": ["alumni"]}

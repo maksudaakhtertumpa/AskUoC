@@ -1,0 +1,54 @@
+# docker compose up -d redis db                 # backing services only (`make api` / `make web` on the host)
+# docker compose --profile full up -d --build   # everything; web :3000, api :8000
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: askuoc-redis
+    command: ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+    ports: ["127.0.0.1:6390:6379"]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, timeout: 3s, retries: 5 }
+
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: askuoc-db
+    environment: { POSTGRES_PASSWORD: pg, POSTGRES_DB: askuoc }
+    ports: ["127.0.0.1:5544:5432"]
+    volumes: [dbdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres -d askuoc"], interval: 5s, timeout: 3s, retries: 10 }
+
+  migrate:
+    profiles: [full]
+    image: python:3.12-slim
+    working_dir: /repo
+    volumes: [".:/repo:ro"]
+    environment: { DATABASE_URL: "postgresql://postgres:pg@db:5432/askuoc" }
+    command: sh -c 'pip install -q "psycopg[binary]" && python scripts/migrate.py'
+    depends_on: { db: { condition: service_healthy } }
+
+  api:
+    profiles: [full]
+    build: { context: ., dockerfile: backend/Dockerfile }
+    ports: ["127.0.0.1:8000:7860"]
+    environment:
+      STORE: supabase
+      DATABASE_URL: "postgresql://postgres:pg@db:5432/askuoc"
+      REDIS_URL: "redis://redis:6379/0"
+      ADMIN_TOKEN: "change-me-setup-key"
+      SECRET_KEY: "change-me-long-random-secret"
+      CORS_ORIGINS: "http://localhost:3000"
+      EMBED_PROVIDER: hash
+      LLM_PROVIDER: stub
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  web:
+    profiles: [full]
+    build:
+      context: frontend
+      args: { NEXT_PUBLIC_API_URL: "http://localhost:8000" }
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: [api]
+
+volumes:
+  dbdata:

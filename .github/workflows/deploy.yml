@@ -1,0 +1,123 @@
+name: Deploy
+
+# Steps skip themselves when their secrets are absent. Add required reviewers to the "production" environment to gate it.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: What to deploy
+        type: choice
+        options: [all, database, api, web]
+        default: all
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  database:
+    name: Database migrations (Supabase)
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Configured?
+        id: cfg
+        run: echo "on=$([ -n "$DATABASE_URL" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'database')
+        uses: actions/checkout@v4
+      - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'database')
+        uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Apply migrations (idempotent, checksummed)
+        if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'database')
+        run: pip install -q "psycopg[binary]" && python scripts/migrate.py
+
+  api:
+    name: API -> Hugging Face Space
+    needs: database
+    if: always() && needs.database.result != 'failure' && needs.database.result != 'cancelled' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_SPACE: ${{ vars.HF_SPACE }}
+    steps:
+      - name: Configured?
+        id: cfg
+        run: echo "on=$([ -n "$HF_TOKEN" ] && [ -n "$HF_SPACE" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'api')
+        uses: actions/checkout@v4
+      - name: Push to the Space (it builds backend/Dockerfile)
+        if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'api')
+        run: ./scripts/deploy_hf.sh
+
+  web:
+    name: Web -> Vercel
+    needs: api
+    if: always() && needs.api.result != 'failure' && needs.api.result != 'cancelled' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Configured?
+        id: cfg
+        working-directory: .
+        run: echo "on=$([ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_PROJECT_ID" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'web')
+        uses: actions/checkout@v4
+      - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'web')
+        uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Build and deploy
+        if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'web')
+        run: |
+          npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+  smoke:
+    name: Post-deploy smoke test
+    needs: [api, web]
+    if: always() && needs.api.result == 'success' && needs.web.result == 'success'
+    runs-on: ubuntu-latest
+    env:
+      API_URL: ${{ vars.API_URL }}
+      WEB_URL: ${{ vars.WEB_URL }}
+    steps:
+      - name: Check the live API and site
+        run: |
+          [ -n "$API_URL" ] || { echo "API_URL variable not set - skipping"; exit 0; }
+          # a Space can take minutes to rebuild after a push
+          curl -sf --retry 40 --retry-delay 15 --retry-connrefused --retry-all-errors "$API_URL/readyz"
+          for h in strict-transport-security x-content-type-options content-security-policy; do
+            curl -sI "$API_URL/health" | grep -qi "^$h:" || { echo "missing header $h"; exit 1; }
+          done
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$API_URL/docs")" = "404"
+          [ -z "$WEB_URL" ] || curl -sf "$WEB_URL" | grep -qi AskUoC
+      - name: Open an issue if production is unhealthy
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title: `Deploy smoke test failed for ${context.sha.slice(0, 7)}`,
+              body: `The post-deploy check failed. See ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}.\n\nRoll back by reverting the commit on main (or redeploying the previous Space commit).`,
+              labels: ['deployment', 'bug'],
+            });
