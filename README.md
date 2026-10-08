@@ -166,6 +166,6 @@ docs/       architecture, data pipeline, deployment, observability, data map
 
 ## License
 
-Code: [MIT](LICENSE) © Maksuda Akhter Tumpa. The University of Cyberjaya's content, names and logos belong to the university
+Code: [MIT](LICENSE) © Maksuda Akther Tumpa. The University of Cyberjaya's content, names and logos belong to the university
 and are not covered by this license; crawled data is not part of this repository.
 Security policy: [SECURITY.md](SECURITY.md). What data is stored and where: [docs/DATA-MAP.md](docs/DATA-MAP.md).

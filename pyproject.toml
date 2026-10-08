@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "RAG chatbot for the University of Cyberjaya (LangGraph, FastAPI, pgvector, Gemini)"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "Maksuda Akhter Tumpa" }]
+authors = [{ name = "Maksuda Akther Tumpa" }]
 
 [tool.pytest.ini_options]
 pythonpath = ["backend", "."]

@@ -3,7 +3,7 @@
 export const SITE_URL = "https://cyberjaya.edu.my";
 export const UOC_URL = SITE_URL;
 
-export const AUTHOR_NAME = "Maksuda Akhter Tumpa";
+export const AUTHOR_NAME = "Maksuda Akther Tumpa";
 export const AUTHOR_URL = process.env.NEXT_PUBLIC_AUTHOR_URL ?? "";
 
 export const OPERATOR_NAME = process.env.NEXT_PUBLIC_OPERATOR_NAME?.trim() || AUTHOR_NAME;
