@@ -34,7 +34,7 @@ jobs:
         id: cfg
         run: echo "on=$([ -n "$DATABASE_URL" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'database')
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'database')
         uses: actions/setup-python@v5
         with: { python-version: "3.12" }
@@ -56,7 +56,7 @@ jobs:
         id: cfg
         run: echo "on=$([ -n "$HF_TOKEN" ] && [ -n "$HF_SPACE" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'api')
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Push to the Space (it builds backend/Dockerfile)
         if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'api')
         run: ./scripts/deploy_hf.sh
@@ -80,7 +80,7 @@ jobs:
         working-directory: .
         run: echo "on=$([ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_PROJECT_ID" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'web')
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - if: steps.cfg.outputs.on == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'web')
         uses: actions/setup-node@v4
         with: { node-version: 22 }
