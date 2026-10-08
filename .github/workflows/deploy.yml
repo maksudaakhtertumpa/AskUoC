@@ -112,7 +112,7 @@ jobs:
           [ -z "$WEB_URL" ] || curl -sf "$WEB_URL" | grep -qi AskUoC
       - name: Open an issue if production is unhealthy
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.issues.create({
