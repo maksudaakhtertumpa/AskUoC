@@ -1,6 +1,6 @@
 # build from the repo root: docker build -f backend/Dockerfile -t askuoc-api .
 # Hugging Face Spaces expects port 7860 and uid 1000
-FROM python:3.12-slim AS base
+FROM python:3.15-slim AS base
 
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 
